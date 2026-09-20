@@ -1,0 +1,9 @@
+# assignment_config.yaml
+
+folder: module3
+
+build:
+  - []
+
+run:
+  - [512, 256]

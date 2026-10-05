@@ -368,7 +368,7 @@ void convertRGBToGrayscale(int totalThreads, int threadsPerBlock)
     unsigned char* deviceGray;
     unsigned char* hostRGB;
     unsigned char* hostGray;
-    memory allocation and synthetic image generation
+    // memory allocation and synthetic image generation
     allocateMem_AndGenerateImage(&deviceRGB, &deviceGray, 
         &hostRGB, &hostGray, rgbNumPixels, grayNumPixels);
     int hostWeights[CHANNELS] = {RED_WEIGHT, GREEN_WEIGHT, BLUE_WEIGHT};
@@ -381,7 +381,7 @@ void convertRGBToGrayscale(int totalThreads, int threadsPerBlock)
         deviceGray, 
         pixelCount, 
         totalThreads, 
-        threadsPerBlock);=
+        threadsPerBlock);
     cudaMemcpy(hostGray, deviceGray, grayNumPixels, cudaMemcpyDeviceToHost);
     verifyGrayscale(hostRGB, hostGray, pixelCount);
 

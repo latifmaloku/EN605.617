@@ -1,0 +1,170 @@
+./assignment.exe 262144 256
+CUDA RGB to Grayscale Preprocessing
+====================================
+
+CUDA Configuration
+------------------
+Total threads:     262144
+Threads per block: 256
+Number of blocks:  1024
+
+Generating synthetic RGB image...
+RGB PNG output: synthetic_rgb.png
+
+Global Memory Kernel Configuration
+---------------------------------
+
+Running global-memory grayscale kernel...
+
+Verification: PASSED
+
+Shared Memory Kernel Configuration
+----------------------------------
+Shared memory:        768 bytes/block
+
+Running shared-memory grayscale kernel...
+
+Verification: PASSED
+
+Performance Comparison
+----------------------
+Global memory:  0.11024 ms
+Shared memory: 0.17776 ms
+
+PNG output: grayscale_output.png
+./assignment.exe 131072 256
+CUDA RGB to Grayscale Preprocessing
+====================================
+
+CUDA Configuration
+------------------
+Total threads:     131072
+Threads per block: 256
+Number of blocks:  512
+
+Generating synthetic RGB image...
+RGB PNG output: synthetic_rgb.png
+
+Global Memory Kernel Configuration
+---------------------------------
+
+Running global-memory grayscale kernel...
+
+Verification: PASSED
+
+Shared Memory Kernel Configuration
+----------------------------------
+Shared memory:        768 bytes/block
+
+Running shared-memory grayscale kernel...
+
+Verification: PASSED
+
+Performance Comparison
+----------------------
+Global memory:  0.06979 ms
+Shared memory: 0.04765 ms
+
+PNG output: grayscale_output.png
+./assignment.exe 524288 256
+CUDA RGB to Grayscale Preprocessing
+====================================
+
+CUDA Configuration
+------------------
+Total threads:     524288
+Threads per block: 256
+Number of blocks:  2048
+
+Generating synthetic RGB image...
+RGB PNG output: synthetic_rgb.png
+
+Global Memory Kernel Configuration
+---------------------------------
+
+Running global-memory grayscale kernel...
+
+Verification: PASSED
+
+Shared Memory Kernel Configuration
+----------------------------------
+Shared memory:        768 bytes/block
+
+Running shared-memory grayscale kernel...
+
+Verification: PASSED
+
+Performance Comparison
+----------------------
+Global memory:  0.09792 ms
+Shared memory: 0.09110 ms
+
+PNG output: grayscale_output.png
+./assignment.exe 262144 128
+CUDA RGB to Grayscale Preprocessing
+====================================
+
+CUDA Configuration
+------------------
+Total threads:     262144
+Threads per block: 128
+Number of blocks:  2048
+
+Generating synthetic RGB image...
+RGB PNG output: synthetic_rgb.png
+
+Global Memory Kernel Configuration
+---------------------------------
+
+Running global-memory grayscale kernel...
+
+Verification: PASSED
+
+Shared Memory Kernel Configuration
+----------------------------------
+Shared memory:        384 bytes/block
+
+Running shared-memory grayscale kernel...
+
+Verification: PASSED
+
+Performance Comparison
+----------------------
+Global memory:  0.03229 ms
+Shared memory: 0.06307 ms
+
+PNG output: grayscale_output.png
+./assignment.exe 262144 512
+CUDA RGB to Grayscale Preprocessing
+====================================
+
+CUDA Configuration
+------------------
+Total threads:     262144
+Threads per block: 512
+Number of blocks:  512
+
+Generating synthetic RGB image...
+RGB PNG output: synthetic_rgb.png
+
+Global Memory Kernel Configuration
+---------------------------------
+
+Running global-memory grayscale kernel...
+
+Verification: PASSED
+
+Shared Memory Kernel Configuration
+----------------------------------
+Shared memory:        1536 bytes/block
+
+Running shared-memory grayscale kernel...
+
+Verification: PASSED
+
+Performance Comparison
+----------------------
+Global memory:  0.10867 ms
+Shared memory: 0.05190 ms
+
+PNG output: grayscale_output.png

@@ -57,13 +57,13 @@ This will generate:
 ### Run
 
 ```bash
-./run.sh <numThreads> <threadsPerBlock> <imageHeight> <imageWidth>
+./run.sh <numThreads> <threadsPerBlock> <imageWidth> <imageHeight> 
 ```
 
 or:
 
 ```bash
-./assignment.exe <numThreads> <threadsPerBlock> <imageHeight> <imageWidth>
+./assignment.exe <numThreads> <threadsPerBlock> <imageWidth> <imageHeight> 
 ```
 
 For example:

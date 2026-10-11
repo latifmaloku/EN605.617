@@ -257,8 +257,8 @@ void cleanupMultiStream(cudaStream_t streams[STREAM_COUNT],
     cudaEventDestroy(stop);
     cudaStreamDestroy(timingStream);
 }
-// Run separate image chunks in multiple streams and measure elapsed time.
 
+// Run separate image chunks in multiple streams and measure elapsed time.
 float runMultiStream(unsigned char* hostRGB, unsigned char* hostGray,
     unsigned char* deviceRGB, unsigned char* deviceGray, int pixelCount,
     int totalThreads, int threadsPerBlock)
@@ -269,10 +269,10 @@ float runMultiStream(unsigned char* hostRGB, unsigned char* hostGray,
     cudaEvent_t start, stop, streamDone[STREAM_COUNT];
     float elapsedTime = 0.0f;
     int pixelsPerStream = (pixelCount + STREAM_COUNT - 1) / STREAM_COUNT;
-
     cudaStreamCreate(&timingStream);
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
+    
     // Create worker streams and events for each stream
     for (int i = 0; i < STREAM_COUNT; i++)
     {

@@ -1,9 +1,12 @@
 # assignment_config.yaml
 
-folder: module5
+folder: module6
 
 build:
   - []
 
 run:
-  - [512, 256]
+  - [512, 256, 512, 1024]
+  - [1024, 512, 1024, 2048]
+  - [32768, 512, 2048, 2048]
+

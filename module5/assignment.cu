@@ -220,7 +220,8 @@ bool checkSharedMemorySize(size_t sharedMemoryBytes)
 }
 
 // Run the global-memory grayscale kernel and measure its time.
-float runGlobalGrayscaleKernel(unsigned char* deviceRGB, unsigned char* deviceGray, int pixelCount, int totalThreads, int threadsPerBlock)
+float runGlobalGrayscaleKernel(unsigned char* deviceRGB,
+    unsigned char* deviceGray, int pixelCount, int totalThreads, int threadsPerBlock)
 {
     int blocks = (totalThreads + threadsPerBlock - 1) / threadsPerBlock;
 
@@ -256,7 +257,8 @@ float runGlobalGrayscaleKernel(unsigned char* deviceRGB, unsigned char* deviceGr
 }
 
 // Run the shared-memory grayscale kernel and measure its time.
-float runSharedGrayscaleKernel(unsigned char* deviceRGB, unsigned char* deviceGray, int pixelCount, int totalThreads, int threadsPerBlock)
+float runSharedGrayscaleKernel(unsigned char* deviceRGB,
+    unsigned char* deviceGray, int pixelCount, int totalThreads, int threadsPerBlock)
 {
     int blocks = (totalThreads + threadsPerBlock - 1) / threadsPerBlock;
     size_t sharedMemoryBytes = (size_t)threadsPerBlock * 

@@ -22,6 +22,9 @@
 #include <memory>
 #include <stdexcept>
 
+// Define the number of grayscale levels
+const int GRAYSCALE_LEVELS = 256;
+
 // Convert the input image to grayscale
 FIBITMAP* convertToGrayscale(const std::string& inputPath)
 {
@@ -48,6 +51,7 @@ FIBITMAP* convertToGrayscale(const std::string& inputPath)
 
     if (!gray){
         printf("Unable to convert image to grayscale.\n");
+        return nullptr;
 }
     return gray;
 }
@@ -68,7 +72,7 @@ bool saveGrayscaleBMP(const std::string& path,
     // Initialize the grayscale color palette
     RGBQUAD color;
 
-    for (int i = 0; i < 256; ++i) {
+    for (int i = 0; i < GRAYSCALE_LEVELS; ++i) {
         color.rgbRed = color.rgbGreen = color.rgbBlue = i;
         color.rgbReserved = 0;
         FreeImage_GetPalette(bitmap)[i] = color;
@@ -474,11 +478,11 @@ int main(int argc, char* argv[])
         FreeImage_DeInitialise();
         return EXIT_SUCCESS;
     }
-    catch (const npp::Exception& error) {
+    catch (const npp::Exception&) {
         printf("NPP image erro");
     }
     catch (const std::exception& error) {
-        printf("Error");
+        printf("Error: %s\n", error.what());
     }
 
     FreeImage_DeInitialise();

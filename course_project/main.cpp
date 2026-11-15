@@ -1,4 +1,5 @@
 #include "contour_selector.hpp"
+#include "snake_CPU.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -6,7 +7,7 @@
 int main(int argc, char** argv) {
     std::string imagePath;
 
-    // Check if the image path is provided as a command-line argument
+    // Check if the image path is provided as arg
     if (argc > 1) {
         imagePath = argv[1];;
     } else {
@@ -31,7 +32,9 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // TODO:  active contour 
+    Snake_CPU snake(0.1, 0.1, 1.0);
+    snake.initialize(image, initialPoints);
+    snake.run(100);
 
     return 0;
 }

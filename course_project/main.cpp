@@ -32,9 +32,9 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    Snake_CPU snake(0.1, 0.1, 1.0);
+    Snake_CPU  snake(1.2, 0.5, 3.5);
     snake.initialize(image, initialPoints);
-    snake.run(100);
+    snake.run(300);
 
     return 0;
 }

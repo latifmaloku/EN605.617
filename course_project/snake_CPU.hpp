@@ -1,6 +1,7 @@
 #pragma once
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include "snake_base.hpp"
 #include <vector>
 
 /**
@@ -10,7 +11,8 @@
  * Evolves control points over a target image by minimizing an energy functional
  * composed of elasticity and rigidity and image gradients/edges.
  */
-class Snake_CPU {
+class Snake_CPU : public Snake_Base
+{
 public:
     /**
      * @brief Constructs a new Snake_CPU with specified energy weights
@@ -18,38 +20,27 @@ public:
      * @param alpha Elasticity weight 
      * @param beta  Rigidity weight 
      * @param gamma External energy weight
+     * @param balloonWeight Balloon force weight
+     * @param windowRadius Radius of the local search window for candidate points
+     * @param resampleInterval Number of iterations between contour resampling
+     * @param resampleSpacing Spacing between points after resampling
+     * @param initialResampleSpacing Spacing for initial resampling of user-defined contour
+     * @param gaussianSigma Standard deviation for Gaussian smoothing of the image gradient
      */
-    Snake_CPU(double alpha = 0.1, double beta = 0.1, double gamma = 1.0);
-
-    /**
-     * @brief Initializes the active contour with a target image and starting vertices
-     * 
-     * Stores the input image and prepares the initial control points for energy minimization
-     * 
-     * @param[in] image         The source image
-     * @param[in] initialPoints Ordered list of (x, y) pixel coordinates defining the starting closed loop
-     */
-    void initialize(const cv::Mat& image, const std::vector<cv::Point>& initialPoints);
+    Snake_CPU(double alpha = SnakeConstants::DEFAULT_ALPHA,
+              double beta = SnakeConstants::DEFAULT_BETA,
+              double gamma = SnakeConstants::DEFAULT_GAMMA,
+              double balloonWeight = SnakeConstants::BALLOON_WEIGHT,
+              int windowRadius = SnakeConstants::WINDOW_RADIUS,
+              int resampleInterval = SnakeConstants::RESAMPLE_INTERVAL,
+              float resampleSpacing = SnakeConstants::RESAMPLE_SPACING,
+              float initialResampleSpacing = SnakeConstants::INITIAL_RESAMPLE_SPACING,
+              float gaussianSigma = SnakeConstants::GAUSSIAN_SIGMA);
 
     /**
      * @brief Executes the iterative energy minimization loop to deform the contour toward object boundaries
      * 
      * @param maxIterations Max number of optimization steps before stopping
      */
-    void run(int maxIterations = 100);
-
-    /**
-     * @brief Retrieves the current contour coordinates
-     * 
-     * @return std::vector<cv::Point> Ordered list of coordinates representing the current state
-     */
-    std::vector<cv::Point> getPoints() const;
-
-private:
-    double m_alpha; // Weight controlling contour resistance to stretching
-    double m_beta;  // Weight controlling contour resistance to bending
-    double m_gamma; // Weight controlling attraction to edges
-
-    cv::Mat m_image;                        // Working copy of the target image
-    std::vector<cv::Point> m_snakePoints;   // Current ordered vertices of the active contour
+    void run(int maxIterations = SnakeConstants::DEFAULT_MAX_ITERATIONS) override;
 };

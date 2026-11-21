@@ -1,9 +1,9 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#include "snake_constants.hpp"
 #include <vector>
 #include <string>
-const int MIN_POINTS = 3; // Minimum number of points required to form a valid contour
 /**
  * @class ContourSelector
  * @brief GUI tool for selecting initial control points.
@@ -25,7 +25,6 @@ public:
      * 
      * Controls:
      * - **Left Click**: Add a point
-     * - **Right Click**: Undo click
      * - **'c' / 'C'**: Connect the first and last points
      * - **Enter**: Confirm points and close the window.
      * - **Esc**: Cancel selection and close the window.

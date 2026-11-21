@@ -1,229 +1,313 @@
 #include "snake_CPU.hpp"
+#include "snake_constants.hpp"
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <algorithm>
 #include <limits>
-
+#include <stdexcept>
+#include <chrono>
 namespace {
-    // Helper: Resamples a sparse closed polygon into evenly spaced points
-    std::vector<cv::Point> resampleClosedContour(const std::vector<cv::Point>& rawPoints, double stepSize = 4.0) {
-        std::vector<cv::Point> densePoints;
-        size_t n = rawPoints.size();
-        if (n < 3) return rawPoints;
+    using namespace SnakeConstants;
 
-        for (size_t i = 0; i < n; ++i) {
-            cv::Point2d p1 = rawPoints[i];
-            cv::Point2d p2 = rawPoints[(i + 1) % n];
-
-            double dx = p2.x - p1.x;
-            double dy = p2.y - p1.y;
-            double segmentLength = std::hypot(dx, dy);
-
-            int numSteps = std::max(1, static_cast<int>(std::round(segmentLength / stepSize)));
-            for (int step = 0; step < numSteps; ++step) {
-                double t = static_cast<double>(step) / numSteps;
-                densePoints.emplace_back(
-                    static_cast<int>(std::round(p1.x + t * dx)),
-                    static_cast<int>(std::round(p1.y + t * dy))
-                );
-            }
-        }
-        return densePoints;
+    // Converts a vector of integer OpenCV points to floating-point points
+    std::vector<cv::Point2f> toFloatPoints(
+        const std::vector<cv::Point> &points)
+    {
+        std::vector<cv::Point2f> result;
+        result.reserve(points.size());
+        for (const cv::Point &point : points)
+            result.emplace_back(static_cast<float>(point.x),
+                                static_cast<float>(point.y));
+        return result;
     }
 
-    // Helper: Computes normalized gradient magnitude map (edges = high values)
-    cv::Mat computeGradientMagnitude(const cv::Mat& image) {
-        cv::Mat gray, blurred, gradX, gradY, mag;
-
-        if (image.channels() == 3) {
+    // Computes the gradient magnitude of the input image
+    cv::Mat computeGradientMagnitude(const cv::Mat &image, float gaussianSigma)
+    {
+        // Convert to grayscale if necessary
+        cv::Mat gray;
+        if (image.channels() == 3)
+        {
             cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-        } else {
+        }
+        else if (image.channels() == 4)
+        {
+            cv::cvtColor(image, gray, cv::COLOR_BGRA2GRAY);
+        }
+        else if (image.channels() == 1)
+        {
             gray = image.clone();
         }
-
-        // Larger kernel (11x11) smooths out wood grain, hair texture, and noise
-        cv::GaussianBlur(gray, blurred, cv::Size(11, 11), 1.0);
-
-        cv::Sobel(blurred, gradX, CV_64F, 1, 0, 3);
-        cv::Sobel(blurred, gradY, CV_64F, 0, 1, 3);
-        cv::magnitude(gradX, gradY, mag);
-
-        // Normalize gradient magnitude to [0.0, 1.0]
-        double minVal = 0.0, maxVal = 0.0;
-        cv::minMaxLoc(mag, &minVal, &maxVal);
-        if (maxVal > 1e-6) {
-            mag /= maxVal;
+        else
+        {
+            throw std::runtime_error("Input image must have 1, 3, or 4 channels.");
         }
-        return mag;
+        // Ensure the image is in 8-bit unsigned format
+        if (gray.depth() != CV_8U)
+        {
+            gray.convertTo(gray, CV_8U);
+        }
+        // Create a separable Gaussian kernel for smoothing
+        float weights[GAUSSIAN_SIZE];
+        float weightSum = 0.0f;
+        for (int i = -GAUSSIAN_RADIUS; i <= GAUSSIAN_RADIUS; ++i)
+        {
+            const float value = std::exp(
+                -(static_cast<float>(i * i)) /
+                (2.0f * gaussianSigma * gaussianSigma));
+            weights[i + GAUSSIAN_RADIUS] = value;
+            weightSum += value;
+        }
+        // Normalize the weights to ensure they sum to 1
+        for (float &weight : weights)
+        {
+            weight /= weightSum;
+        }
+        // Apply Gaussian smoothing using separable filters
+        cv::Mat grayFloat;
+        gray.convertTo(grayFloat, CV_32F);
+        cv::Mat gaussianKernel(1, GAUSSIAN_SIZE, CV_32F, weights);
+        cv::Mat blurred;
+        cv::sepFilter2D(grayFloat, blurred, CV_32F,
+                        gaussianKernel, gaussianKernel.t(),
+                        cv::Point(-1, -1), 0.0, cv::BORDER_REPLICATE);
+        // Compute the gradients in x and y directions using Sobel operator
+        cv::Mat gradX, gradY, magnitude;
+        cv::Sobel(blurred, gradX, CV_32F, 1, 0, 3,
+                  1.0, 0.0, cv::BORDER_REPLICATE);
+        cv::Sobel(blurred, gradY, CV_32F, 0, 1, 3,
+                  1.0, 0.0, cv::BORDER_REPLICATE);
+        cv::magnitude(gradX, gradY, magnitude);
+        // Normalize the gradient magnitude to the range [0, 1]
+        double minValue = 0.0;
+        double maxValue = 0.0;
+        cv::minMaxLoc(magnitude, &minValue, &maxValue);
+        if (maxValue > ENERGY_EPSILON)
+        {
+            magnitude /= static_cast<float>(maxValue);
+        }
+        else
+        {
+            magnitude.setTo(0.0f);
+        }
+
+        return magnitude;
     }
 
-
-    // Helper: Draws the evolving contour onto a window
-    void visualizeProgress(const cv::Mat& baseImage, const std::vector<cv::Point>& points, int iter) {
-        cv::Mat display = baseImage.clone();
-        if (points.size() > 1) {
-            for (size_t i = 0; i < points.size(); ++i) {
-                cv::line(display, points[i], points[(i + 1) % points.size()], cv::Scalar(0, 255, 0), 2);
-                cv::circle(display, points[i], 2, cv::Scalar(0, 0, 255), -1);
-            }
-        }
-        cv::putText(display, "Iteration: " + std::to_string(iter), cv::Point(15, 30),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 0), 2);
-        cv::imshow("Active Contour Evolution", display);
-        cv::waitKey(15);
-    }
 }
 
-Snake_CPU::Snake_CPU(double alpha, double beta, double gamma)
-    : m_alpha(alpha), m_beta(beta), m_gamma(gamma) {}
-
-void Snake_CPU::initialize(const cv::Mat& image, const std::vector<cv::Point>& initialPoints) {
-    m_image = image.clone();
-    // Resample the initial contour to ensure uniform spacing of control points
-    m_snakePoints = resampleClosedContour(initialPoints, 10.0);
-    std::cout << "Snake_CPU initialized with " << m_snakePoints.size() << " resampled points.\n";
-}
+Snake_CPU::Snake_CPU(double alpha, double beta, double gamma,
+                     double balloonWeight, int windowRadius,
+                     int resampleInterval, float resampleSpacing,
+                     float initialResampleSpacing, float gaussianSigma)
+    : Snake_Base(alpha, beta, gamma, balloonWeight, windowRadius,
+                 resampleInterval, resampleSpacing,
+                 initialResampleSpacing, gaussianSigma) {}
 
 void Snake_CPU::run(int maxIterations) {
-    if (m_image.empty() || m_snakePoints.size() < 3) {
-        std::cerr << "Error: ActiveContour must be initialized with a valid image and >= 3 points.\n";
+    if (!canRun(maxIterations, "Snake_CPU"))
+    {
         return;
     }
+    // Start timing the setup phase
+    const auto setupStart = std::chrono::high_resolution_clock::now();
+    // Compute the gradient magnitude of the image for external energy
+    const int cols = m_image.cols;
+    const int rows = m_image.rows;
+    const cv::Mat gradMag = computeGradientMagnitude(
+        m_image, m_gaussianSigma);
 
-    cv::Mat gradMag = computeGradientMagnitude(m_image);
-    const int windowRadius = 3; // 7x7 search window
-    const int windowSize = (2 * windowRadius + 1) * (2 * windowRadius + 1);
-    const double balloonWeight = 0.35; // Positive = shrink inward, Negative = expand outward
-
-    for (int iter = 0; iter < maxIterations; ++iter) {
-        // Resample every 10 iterations so vertices don't bunch up as the loop shrinks
-        if (iter > 0 && iter % 10 == 0 && m_snakePoints.size() > 15) {
-            m_snakePoints = resampleClosedContour(m_snakePoints, 4.0);
+    // Convert the initial snake points to floating-point for evolution
+    std::vector<cv::Point2f> pointsIn = toFloatPoints(m_snakePoints);
+    std::vector<cv::Point2f> pointsOut(pointsIn.size());
+    const auto contourUpdateStart = std::chrono::high_resolution_clock::now();
+    double visualizationTime = 0.0;
+    // Main iterative evolution loop
+    for (int iter = 0; iter < maxIterations; ++iter)
+    {
+        if (iter > 0 && iter % m_resampleInterval == 0 &&
+            pointsIn.size() > RESAMPLE_POINT_THRESHOLD)
+        {
+            pointsIn = resampleClosedContour(pointsIn, m_resampleSpacing);
+            pointsOut.resize(pointsIn.size());
         }
 
-        const int n = static_cast<int>(m_snakePoints.size());
+        const int n = static_cast<int>(pointsIn.size());
+        if (n < SnakeConstants::MIN_CONTOUR_POINTS)
+        {
+            break;
+        }
+
+        // Compute the centroid of the current contour for balloon force direction
+        cv::Point2f centroid(0.0f, 0.0f);
+        for (const cv::Point2f &point : pointsIn)
+        {
+            centroid.x += point.x;
+            centroid.y += point.y;
+        }
+        centroid.x /= static_cast<float>(n);
+        centroid.y /= static_cast<float>(n);
+
         int pointsMoved = 0;
 
-        // Compute contour centroid to determine inward vs. outward direction
-        cv::Point2d centroid(0.0, 0.0);
-        for (const auto& pt : m_snakePoints) {
-            centroid.x += pt.x;
-            centroid.y += pt.y;
-        }
-        centroid.x /= n;
-        centroid.y /= n;
-
-        for (int i = 0; i < n; ++i) {
-            int prev = (i - 1 + n) % n;
-            int next = (i + 1) % n;
-
-            cv::Point pPrev = m_snakePoints[prev];
-            cv::Point pCurr = m_snakePoints[i];
-            cv::Point pNext = m_snakePoints[next];
-
-            // Compute unit tangent and unit inward normal at pCurr
-            double tx = pNext.x - pPrev.x;
-            double ty = pNext.y - pPrev.y;
-            double tLen = std::hypot(tx, ty);
-            double nxNorm = 0.0, nyNorm = 0.0;
-            if (tLen > 1e-6) {
-                // Perpendicular vector
-                nxNorm = -ty / tLen;
-                nyNorm = tx / tLen;
-                // Ensure normal points inward toward the centroid
-                double toCenterX = centroid.x - pCurr.x;
-                double toCenterY = centroid.y - pCurr.y;
-                if (nxNorm * toCenterX + nyNorm * toCenterY < 0) {
+        // Iterate over each point in the contour to compute energy and update positions
+        for (int i = 0; i < n; ++i)
+        {
+            // Determine the previous and next points in the closed contour
+            const int prev = (i - 1 + n) % n;
+            const int next = (i + 1) % n;
+            const cv::Point2f pPrev = pointsIn[prev];
+            const cv::Point2f pCurr = pointsIn[i];
+            const cv::Point2f pNext = pointsIn[next];
+            // Compute the tangent vector and its length for normal direction
+            const float tx = pNext.x - pPrev.x;
+            const float ty = pNext.y - pPrev.y;
+            const float tangentLength = std::hypot(tx, ty);
+            float nxNorm = 0.0f;
+            float nyNorm = 0.0f;
+            // Compute the outward normal vector based on the tangent
+            if (tangentLength > ENERGY_EPSILON)
+            {
+                nxNorm = -ty / tangentLength;
+                nyNorm = tx / tangentLength;
+                const float toCenterX = centroid.x - pCurr.x;
+                const float toCenterY = centroid.y - pCurr.y;
+                if (nxNorm * toCenterX + nyNorm * toCenterY < 0.0f)
+                {
                     nxNorm = -nxNorm;
                     nyNorm = -nyNorm;
                 }
             }
-
-            std::vector<cv::Point> candidates;
-            candidates.reserve(windowSize);
-
-            std::vector<double> eCont(windowSize, 0.0);
-            std::vector<double> eCurv(windowSize, 0.0);
-            std::vector<double> eBalloon(windowSize, 0.0);
-            std::vector<double> eImg(windowSize, 0.0);
-
-            double maxCont = 1e-6;
-            double maxCurv = 1e-6;
+            // Arrays to hold energy values for the local search window
+            const int windowSize =
+                (2 * m_windowRadius + 1) * (2 * m_windowRadius + 1);
+            std::vector<float> eCont(windowSize);
+            std::vector<float> eCurv(windowSize);
+            std::vector<float> eBalloon(windowSize);
+            std::vector<float> eImg(windowSize);
+            std::vector<cv::Point> candidates(windowSize);
+            float maxCont = ENERGY_EPSILON;
+            float maxCurv = ENERGY_EPSILON;
 
             int idx = 0;
-            for (int dy = -windowRadius; dy <= windowRadius; ++dy) {
-                for (int dx = -windowRadius; dx <= windowRadius; ++dx) {
-                    int nx = std::clamp(pCurr.x + dx, 1, m_image.cols - 2);
-                    int ny = std::clamp(pCurr.y + dy, 1, m_image.rows - 2);
-                    cv::Point cand(nx, ny);
-                    candidates.push_back(cand);
-
-                    // Continuity Energy
-                    double distPrev = std::hypot(cand.x - pPrev.x, cand.y - pPrev.y);
-                    double distNext = std::hypot(pNext.x - cand.x, pNext.y - cand.y);
-                    double cont = distPrev * distPrev + distNext * distNext;
+            // Evaluate energy for each candidate point in the local search window
+            for (int dy = -m_windowRadius; dy <= m_windowRadius; ++dy)
+            {
+                for (int dx = -m_windowRadius; dx <= m_windowRadius; ++dx)
+                {
+                    // Clamp candidate coordinates to stay within image bounds
+                    const int baseX = cvRound(pCurr.x);
+                    const int baseY = cvRound(pCurr.y);
+                    const int nx = std::clamp(baseX + dx, 1, cols - 2);
+                    const int ny = std::clamp(baseY + dy, 1, rows - 2);
+                    candidates[idx] = cv::Point(nx, ny);
+                    // Compute continuity energy based on distances to previous and next points
+                    const float distPrevX = nx - pPrev.x;
+                    const float distPrevY = ny - pPrev.y;
+                    const float distNextX = pNext.x - nx;
+                    const float distNextY = pNext.y - ny;
+                    const float cont = distPrevX * distPrevX +
+                                       distPrevY * distPrevY +
+                                       distNextX * distNextX +
+                                       distNextY * distNextY;
                     eCont[idx] = cont;
                     maxCont = std::max(maxCont, cont);
-
-                    // Curvature Energy
-                    double d2x = pPrev.x - 2.0 * cand.x + pNext.x;
-                    double d2y = pPrev.y - 2.0 * cand.y + pNext.y;
-                    double curv = d2x * d2x + d2y * d2y;
+                    // Compute curvature energy based on second derivative approximation
+                    const float d2x = pPrev.x - 2.0f * nx + pNext.x;
+                    const float d2y = pPrev.y - 2.0f * ny + pNext.y;
+                    const float curv = d2x * d2x + d2y * d2y;
                     eCurv[idx] = curv;
                     maxCurv = std::max(maxCurv, curv);
-
-                    // Balloon Energy: rewards moving in the inward normal direction
-                    double moveX = cand.x - pCurr.x;
-                    double moveY = cand.y - pCurr.y;
-                    // Normalize projection by windowRadius so it stays in [-1.0, 1.0]
-                    eBalloon[idx] = -(moveX * nxNorm + moveY * nyNorm) / windowRadius;
-
-                    // External Image Energy (edges = -1.0, flat = 0.0)
-                    eImg[idx] = -gradMag.at<double>(ny, nx);
-
-                    idx++;
+                    // Compute balloon and image energies
+                    const float moveX = nx - pCurr.x;
+                    const float moveY = ny - pCurr.y;
+                    eBalloon[idx] =
+                        -(moveX * nxNorm + moveY * nyNorm) / m_windowRadius;
+                    eImg[idx] = -gradMag.at<float>(ny, nx);
+                    ++idx;
                 }
             }
-
-            double bestEnergy = std::numeric_limits<double>::max();
-            cv::Point bestPoint = pCurr;
-
-            for (int k = 0; k < idx; ++k) {
-                double normCont = eCont[k] / maxCont;
-                double normCurv = eCurv[k] / maxCurv;
-
-                double totalEnergy = m_alpha * normCont 
-                                   + m_beta * normCurv 
-                                   + balloonWeight * eBalloon[k] 
-                                   + m_gamma * eImg[k];
-
-                if (totalEnergy < bestEnergy) {
+            // Find the candidate point with the minimum total energy
+            float bestEnergy = std::numeric_limits<float>::max();
+            cv::Point2f bestPoint = pCurr;
+            for (int k = 0; k < windowSize; ++k)
+            {
+                // Normalize continuity and curvature energies to [0, 1] range
+                const float normCont = eCont[k] / maxCont;
+                const float normCurv = eCurv[k] / maxCurv;
+                const float totalEnergy =
+                    static_cast<float>(m_alpha) * normCont +
+                    static_cast<float>(m_beta) * normCurv +
+                    static_cast<float>(m_balloonWeight) * eBalloon[k] +
+                    static_cast<float>(m_gamma) * eImg[k];
+                // Update the best point if a lower energy is found
+                if (totalEnergy < bestEnergy)
+                {
                     bestEnergy = totalEnergy;
-                    bestPoint = candidates[k];
+                    bestPoint = cv::Point2f(
+                        static_cast<float>(candidates[k].x),
+                        static_cast<float>(candidates[k].y));
                 }
             }
-
-            if (bestPoint != pCurr) {
-                m_snakePoints[i] = bestPoint;
-                pointsMoved++;
+            // Update the output point and count if it moved significantly
+            pointsOut[i] = bestPoint;
+            if (std::fabs(bestPoint.x - pCurr.x) > GEOMETRY_EPSILON ||
+                std::fabs(bestPoint.y - pCurr.y) > GEOMETRY_EPSILON)
+            {
+                ++pointsMoved;
             }
         }
 
-        visualizeProgress(m_image, m_snakePoints, iter + 1);
+        pointsIn.swap(pointsOut);
 
-        if (pointsMoved < std::max(1, n / 50)) {
-            std::cout << "Snake converged at iteration " << (iter + 1) << ".\n";
-            break;
+        // Report progress and check for convergence
+        const bool reportIteration =
+            ((iter + 1) % m_resampleInterval == 0) ||
+            (iter == maxIterations - 1);
+        if (reportIteration)
+        {
+            // Visualize the current state of the snake and measure visualization time
+            const auto visualizationStart =
+                std::chrono::high_resolution_clock::now();
+            visualizeProgress(pointsIn, iter + 1);
+            visualizationTime += std::chrono::duration<double, std::milli>(
+                std::chrono::high_resolution_clock::now() -
+                visualizationStart).count();
+            if (pointsMoved < std::max(1, n / 50))
+            {
+                std::cout << "Snake converged at iteration " << (iter + 1) << ".\n";
+                break;
+            }
         }
     }
+
+    // Convert the final floating-point contour back to integer pixel coordinates
+    m_snakePoints.clear();
+    m_snakePoints.reserve(pointsIn.size());
+    for (const cv::Point2f &point : pointsIn)
+    {
+        m_snakePoints.emplace_back(cvRound(point.x), cvRound(point.y));
+    }
+    // End timing the evolution phase
+    const auto contourUpdateEnd = std::chrono::high_resolution_clock::now();
+    const double setupTime = std::chrono::duration<double, std::milli>(
+        contourUpdateStart - setupStart).count();
+    const double contourUpdateWallTime = std::chrono::duration<double, std::milli>(
+        contourUpdateEnd - contourUpdateStart).count();
+
+    std::cout << "CPU setup time: " << setupTime << " ms\n";
+    std::cout << "CPU contour update time: "
+              << std::max(0.0, contourUpdateWallTime - visualizationTime)
+              << " ms\n";
+    std::cout << "CPU visualization time: "
+              << visualizationTime << " ms\n";
+    std::cout << "CPU total active time: "
+              << setupTime + contourUpdateWallTime << " ms\n";
 
     std::cout << "Finished Active Contour. Press any key on the image window to exit.\n";
     cv::waitKey(0);
     cv::destroyWindow("Active Contour Evolution");
-}
-
-
-std::vector<cv::Point> Snake_CPU::getPoints() const {
-    return m_snakePoints;
 }

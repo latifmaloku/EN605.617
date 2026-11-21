@@ -22,8 +22,8 @@ namespace
         float gaussianSigma = SnakeConstants::GAUSSIAN_SIGMA;
         int maxIterations = SnakeConstants::RUN_MAX_ITERATIONS;
     };
-
-    bool parseDoubleOption(int argc, char **argv, int &i,
+    // Helper function to parse a double option from command line arguments
+    bool parseOptionDouble(int argc, char **argv, int &i,
                            const char *name, double &value)
     {
         if (i + 1 >= argc)
@@ -40,8 +40,8 @@ namespace
         }
         return true;
     }
-
-    bool parseIntOption(int argc, char **argv, int &i,
+    // Helper function to parse an integer option from command line arguments
+    bool parseOptionInt(int argc, char **argv, int &i,
                         const char *name, int &value)
     {
         if (i + 1 >= argc)
@@ -60,18 +60,17 @@ namespace
         return true;
     }
 }
-
+// Main to run the snake application
 int main(int argc, char **argv)
 {
     std::string imagePath;
     SnakeOptions options;
-
+    // Parse command line arguments
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
         double doubleValue = 0.0;
         int intValue = 0;
-
         if (arg == "--help")
         {
             std::cout
@@ -90,7 +89,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--alpha")
         {
-            if (!parseDoubleOption(argc, argv, i, "--alpha", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--alpha", doubleValue))
             {
                 return -1;
             }
@@ -98,7 +97,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--beta")
         {
-            if (!parseDoubleOption(argc, argv, i, "--beta", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--beta", doubleValue))
             {
                 return -1;
             }
@@ -106,7 +105,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--gamma")
         {
-            if (!parseDoubleOption(argc, argv, i, "--gamma", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--gamma", doubleValue))
             {
                 return -1;
             }
@@ -114,7 +113,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--balloon")
         {
-            if (!parseDoubleOption(argc, argv, i, "--balloon", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--balloon", doubleValue))
             {
                 return -1;
             }
@@ -122,7 +121,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--gaussian-sigma")
         {
-            if (!parseDoubleOption(argc, argv, i, "--gaussian-sigma", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--gaussian-sigma", doubleValue))
             {
                 return -1;
             }
@@ -130,7 +129,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--window-radius")
         {
-            if (!parseIntOption(argc, argv, i, "--window-radius", intValue))
+            if (!parseOptionInt(argc, argv, i, "--window-radius", intValue))
             {
                 return -1;
             }
@@ -138,7 +137,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--resample-interval")
         {
-            if (!parseIntOption(argc, argv, i, "--resample-interval", intValue))
+            if (!parseOptionInt(argc, argv, i, "--resample-interval", intValue))
             {
                 return -1;
             }
@@ -146,7 +145,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--resample-spacing")
         {
-            if (!parseDoubleOption(argc, argv, i, "--resample-spacing", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--resample-spacing", doubleValue))
             {
                 return -1;
             }
@@ -154,7 +153,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--initial-spacing")
         {
-            if (!parseDoubleOption(argc, argv, i, "--initial-spacing", doubleValue))
+            if (!parseOptionDouble(argc, argv, i, "--initial-spacing", doubleValue))
             {
                 return -1;
             }
@@ -162,7 +161,7 @@ int main(int argc, char **argv)
         }
         else if (arg == "--iterations")
         {
-            if (!parseIntOption(argc, argv, i, "--iterations", intValue))
+            if (!parseOptionInt(argc, argv, i, "--iterations", intValue))
             {
                 return -1;
             }
@@ -182,7 +181,7 @@ int main(int argc, char **argv)
             return -1;
         }
     }
-
+    // If no image path was provided, prompt the user for it
     if (imagePath.empty())
     {
         std::cout << "Enter the path to the image file: ";
@@ -225,7 +224,7 @@ int main(int argc, char **argv)
         std::cout << "Selection canceled.\n";
         return 0;
     }
-
+    // initialize and run the snake algorithm
     Snake_CPU snake(
         options.alpha, options.beta, options.gamma,
         options.balloonWeight, options.windowRadius,

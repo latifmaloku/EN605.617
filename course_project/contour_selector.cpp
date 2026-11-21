@@ -53,7 +53,6 @@ bool ContourSelector::selectPoints(const cv::Mat& image, std::vector<cv::Point>&
     // Display controls
     std::cout << "\n--- Controls ---\n"
               << "Left Click  : Add contour control point\n"
-              << "Right Click : Undo last point\n"
               << "'c' key     : Close the contour loop\n"
               << "'Enter'     : Confirm points and proceed\n"
               << "'Esc'       : Exit\n\n";

@@ -176,8 +176,10 @@ protected:
     static std::vector<cv::Point> resampleClosedContour(
         const std::vector<cv::Point> &rawPoints, float spacing)
     {
+        // Convert integer points to floating-point for resampling
         std::vector<cv::Point2f> clean;
         clean.reserve(rawPoints.size());
+        // Remove duplicate points that are too close together
         for (const cv::Point &point : rawPoints)
         {
             cv::Point2f candidate(static_cast<float>(point.x),
@@ -188,7 +190,7 @@ protected:
                 clean.push_back(candidate);
             }
         }
-
+        // If the contour is closed, remove the last point if it's too close to the first
         if (clean.size() > 1 &&
             cv::norm(clean.front() - clean.back()) <= SnakeConstants::GEOMETRY_EPSILON)
         {
@@ -203,7 +205,7 @@ protected:
             }
             return result;
         }
-
+        // Compute the lengths of each segment and the total perimeter
         std::vector<float> lengths(clean.size());
         float perimeter = 0.0f;
         for (size_t i = 0; i < clean.size(); ++i)
@@ -223,6 +225,7 @@ protected:
 
         size_t segment = 0;
         float segmentStart = 0.0f;
+        // Generate evenly spaced points along the contour
         for (int i = 0; i < outputCount; ++i)
         {
             const float target = perimeter * static_cast<float>(i) / outputCount;
@@ -232,7 +235,7 @@ protected:
                 segmentStart += lengths[segment];
                 ++segment;
             }
-
+            // Interpolate between the two points of the current segment
             const float segmentLength = lengths[segment];
             const float t = (segmentLength > SnakeConstants::ENERGY_EPSILON)
                                 ? (target - segmentStart) / segmentLength
@@ -258,6 +261,7 @@ protected:
     {
         std::vector<cv::Point2f> clean;
         clean.reserve(rawPoints.size());
+        // Remove duplicate points that are too close together
         for (const cv::Point2f &point : rawPoints)
         {
             if (clean.empty() ||
@@ -276,7 +280,7 @@ protected:
         {
             return clean;
         }
-
+        // Compute the lengths of each segment and the total perimeter
         std::vector<float> lengths(clean.size());
         float perimeter = 0.0f;
         for (size_t i = 0; i < clean.size(); ++i)
@@ -296,6 +300,7 @@ protected:
 
         size_t segment = 0;
         float segmentStart = 0.0f;
+        // Generate evenly spaced points along the contour
         for (int i = 0; i < outputCount; ++i)
         {
             const float target = perimeter * static_cast<float>(i) / outputCount;
@@ -305,7 +310,7 @@ protected:
                 segmentStart += lengths[segment];
                 ++segment;
             }
-
+            // Interpolate between the two points of the current segment
             const float segmentLength = lengths[segment];
             const float t = (segmentLength > SnakeConstants::ENERGY_EPSILON)
                                 ? (target - segmentStart) / segmentLength

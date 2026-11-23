@@ -1,12 +1,11 @@
 # assignment_config.yaml
 
-folder: module9
+folder: module12
 
 build:
   - []
 
 run:
-  - ["data/Lena.bmp", 0.30, 7.50]
-  - ["data/Lena.bmp", 0.20, 10.50]
-  - ["data/Lena.bmp", 0.15, 30.50]
-  - ["data/Lena.bmp", 0.10, 30.50]
+  - [262144, 256, 1024, 1024]
+  - [524288, 256, 2048, 1024]
+  - [262144, 256, 1024, 1024]
